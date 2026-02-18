@@ -1,549 +1,179 @@
-<!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Chromish Proxy</title>
+<!DOCTYPE html>
+<!--
+  
 
-  <!-- Ultraviolet 必須スクリプト（UV-Static-2.0のactive/uv/以下にあるもの） -->
-  <script src="/uv/uv.bundle.js" type="text/javascript"></script>
-  <script src="/uv/uv.config.js" type="text/javascript"></script>
-  <script src="/uv/uv.handler.js" type="text/javascript"></script>
+██╗    ██╗   ██╗
+██║    ██║   ██║
+██║    ██║   ██║
+██║    ╚██╗ ██╔╝
+███████╗╚████╔╝ 
+╚══════╝ ╚═══╝  
+                
+                        
 
-  <!-- Service Worker登録用（uv.sw.js） -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/uv/uv.sw.js', {scope: '/'}).then(reg => {
-        console.log('UV Service Worker registered', reg);
-      }).catch(err => {
-        console.error('UV SW registration failed', err);
-      });
-    }
-  </script>
+By LupineVault.com
+All images and code are owned by LupineVault (lupinevault.com) and associated developers.
+© 2025 LupineVault and all associated developers.
 
-  <style>
-    /* 全体 */
-    :root{
-      --bg: #e9edf2;
-      --tab-gray: #cfd6dd;
-      --tab-active: #fff;
-      --accent: #1a73e8;
-      --toolbar-h: 52px;
-      font-family: Inter, system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    }
-    html,body{height:100%;margin:0;background:var(--bg);}
-    .window{
-      width:100%;
-      height:100%;
-      display:flex;
-      flex-direction:column;
-      box-shadow:0 10px 30px rgba(0,0,0,0.08);
-    }
-    /* タブバー */
-    .tabbar{
-      height:36px;
-      display:flex;
-      align-items:center;
-      gap:6px;
-      padding:6px 8px;
-      background:linear-gradient(#f6f8fa,#eaeff4);
-      border-bottom:1px solid rgba(0,0,0,0.06);
-      overflow: hidden;
-    }
-    .tab{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 12px;
-      border-radius:8px 8px 0 0;
-      background:var(--tab-gray);
-      color:#222;
-      font-size:13px;
-      flex: 1 1 120px;
-      min-width:0;
-      max-width:220px;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-      box-shadow:0 1px 0 rgba(0,0,0,0.03) inset;
-      cursor:pointer;
-      user-select:none;
-    }
-    .tab.active{
-      background:var(--tab-active);
-      box-shadow:0 2px 6px rgba(0,0,0,0.08);
-      font-weight:600;
-    }
-    .tab .close{
-      margin-left:auto;
-      width:18px;height:18px;
-      display:flex;align-items:center;justify-content:center;
-      border-radius:50%;
-      opacity:0.7;
-      flex: 0 0 auto;
-      font-size:16px;
-    }
-    .tab .close:hover{background:rgba(0,0,0,0.06);opacity:1}
-    .tab-actions{
-      margin-left:8px;
-      display:flex;gap:6px;align-items:center;
-    }
-    .new-tab{
-      padding:6px 10px;border-radius:6px;background:transparent;border:1px dashed rgba(0,0,0,0.06);cursor:pointer;
-    }
-    /* ツールバー（アドレス周り） */
-    .toolbar{
-      height:var(--toolbar-h);
-      display:flex;
-      align-items:center;
-      gap:10px;
-      padding:6px 10px;
-      background:linear-gradient(#ffffff,#f7fbff);
-      border-bottom:1px solid rgba(0,0,0,0.06);
-    }
-    .nav-buttons{
-      display:flex;gap:6px;align-items:center;
-    }
-    .icon-btn{
-      width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;
-      border: none;background:transparent;font-size:16px;
-    }
-    .address{
-      flex:1;display:flex;align-items:center;gap:8px;
-    }
-    form.urlbar{display:flex;flex:1}
-    input.url{
-      width:100%;height:40px;border-radius:10px;border:1px solid rgba(0,0,0,0.08);padding:6px 10px;font-size:14px;
-      background:#fff;outline:none;
-    }
-    /* ブックマークバー非表示 */
-    .bookmarks{
-      display:none;
-    }
-    .bookmark{padding:6px 10px;border-radius:6px;background:transparent;border:1px solid rgba(0,0,0,0.03);cursor:pointer;font-size:13px}
-    /* コンテンツ領域 */
-    .content{flex:1;display:flex;flex-direction:column}
-    .webview{
-      flex:1;border:0;width:100%;
-    }
-    /* ドラッグ中のスタイル */
-    .tab.drag-over{
-      outline:2px dashed rgba(0,0,0,0.12);
-    }
-    /* 小さいスクリーン調整 */
-    @media (max-width:600px){
-      .tab{min-width:60px;padding:6px 8px;font-size:12px}
-      .toolbar{padding:6px}
-    }
-    /* ホームボタンは非表示 */
-    #btnHome{ visibility:hidden; pointer-events:none; }
-  </style>
-</head>
-<body>
-<div class="window" role="application" aria-label="Chromish Proxy">
-  <div class="tabbar" id="tabbar" aria-hidden="false">
-    <!-- タブがここに入る -->
-    <div style="flex:1"></div>
-    <div class="tab-actions">
-      <button class="new-tab" id="btnNewTab" title="新しいタブ">＋</button>
+UV Static 2.0
+-
+Developed by technonyte0
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UV Static v2</title>
+    <script src="check.js" defer></script>
+    <script defer src="scripts/lstimer.js"></script>
+
+    <link rel="stylesheet" href="style/global.css" />
+    <link rel="stylesheet" href="style/browser.css" />
+    
+
+    <script
+      type="text/javascript"
+      src="https://cdn.jsdelivr.net/gh/vanjs-org/van/public/van-1.5.2.nomodule.min.js"
+    ></script>
+
+    <script
+      type="module"
+      src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"
+    ></script>
+    <script
+      nomodule
+      src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"
+    ></script>
+
+    <script src="uv/uv.bundle.js" defer></script>
+    <script src="uv/uv.config.js" defer></script>
+    <script src="scripts/tabs.mjs" type="module" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/gh/tf7software/Font-Awesome-pro-cdn@main/js/all.js"></script>
+    <style>
+      body {padding: 0;margin: 0;}
+    </style>
+    <script>
+      window.onload = function () {
+        if (!localStorage.getItem("discordAlertShown")) {
+          alert("Join our discord.gg/XygZfmMM86 for bonuses, updates, links, and more!");
+          localStorage.setItem("discordAlertShown", "true");
+        }
+      };
+    </script>
+  </head>
+
+  <body>
+    <div id="small-screen-overlay">
+      UV Static 2.0 doesn't support smaller screens. Please use UV Static 2.0 on a larger screen.
     </div>
-  </div>
-  <div class="toolbar" role="toolbar">
-    <div class="nav-buttons">
-      <button class="icon-btn" id="btnBack" title="戻る" aria-label="戻る">◀</button>
-      <button class="icon-btn" id="btnForward" title="進む" aria-label="進む">▶</button>
-      <button class="icon-btn" id="btnReload" title="再読み込み" aria-label="再読み込み">⟳</button>
+
+
+  <div id="nav"></div>
+  <div id="main-content"></div>
+
+
+    <div id="tab-view" class=""></div>
+    <div class="sidebar-container">
+      <header>
+        <div class="page-data">
+          <span id="controls">
+            <button onclick="window.location.href='/'">
+              <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+              <svg
+   width="38.454208mm"
+   height="24.726074mm"
+   viewBox="0 0 38.454208 24.726074"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1"
+     transform="translate(-145.0951,-136.5279)">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:32.9681px;font-family:'Dallas Print Shop';-inkscape-font-specification:'Dallas Print Shop';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#5a32e3;fill-opacity:1;stroke-width:2.74734"
+       x="142.33917"
+       y="161.25397"
+       id="text2"><tspan
+         id="tspan1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Krungthep;-inkscape-font-specification:Krungthep;fill:#5a32e3;fill-opacity:1;stroke-width:2.74734"
+         x="142.33917"
+         y="161.25397">v2</tspan></text>
+  </g>
+</svg>
+
+           
+
+              <p class="tooltip">Home</p>
+            </button>
+            <!-- <p class="logo-name">RED Browse</p> -->
+            <span>
+              <button id="page-back">
+                <ion-icon
+                  name="arrow-back-outline"
+                  class="icon hover-focus1"
+                ></ion-icon>
+                <p class="tooltip">Back</p>
+              </button>
+              <button id="page-forward">
+                <ion-icon
+                  name="arrow-forward-outline"
+                  class="icon hover-focus1"
+                ></ion-icon>
+                <p class="tooltip">Forward</p>
+              </button>
+              <button id="page-refresh">
+                <ion-icon
+                  name="refresh-outline"
+                  class="icon hover-focus1"
+                ></ion-icon>
+                <p class="tooltip">Refresh</p>
+              </button>
+              <button id="options-btn">
+                <ion-icon
+                  name="menu-outline"
+                  class="icon hover-focus1"
+                ></ion-icon>
+                <p class="tooltip">Menu</p>
+              </button>
+            </span>
+          </span>
+          <form id="url-form">
+            <input
+              type="text"
+              id="url-input"
+              onfocus="this.setSelectionRange(0, this.value.length)"
+              class="hover-focus2"
+              placeholder="Search or enter URL"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+            />
+          </form>
+          <button id="new-tab" class="hover-focus2">
+            <ion-icon name="add-outline" class="icon"></ion-icon>
+            <span>New Tab</span>
+          </button>
+        </div>
+        <div id="tab-list"></div>
+      </header>
     </div>
-    <div class="address">
-      <form id="urlForm" class="urlbar" action="javascript:void(0);">
-        <input id="urlInput" class="url" type="text" placeholder="検索またはURL入力" autocomplete="off" />
-      </form>
-      <button class="icon-btn" id="btnHome" title="ホーム">🏠</button>
-      <button class="icon-btn" id="btnMenu" title="メニュー">⋮</button>
+
+    <div id="menu-overlay">
+      <div class="option" id="devtools-option">Developer Tools</div>
+      <div class="option" id="abc-option">Open in about:blank</div>
+      <div class="option" id="git-option">GitHub</div>
     </div>
-  </div>
-  <div class="bookmarks" id="bookmarks"></div>
-  <div class="content">
-    <iframe id="webview" class="webview" src="about:blank" frameborder="0" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox"></iframe>
-  </div>
-</div>
-
-<script>
-/*
-  Chromish + Ultraviolet Proxy 統合版
-  - UVプロキシをアドレスバーとiframeに統合
-  - 新タブは宇宙風スタートページ
-  - 複数タブ・履歴・戻る/進む対応
-*/
-
-(function(){
-  // 新規タブ用スタートページ（EARTH宇宙デザイン）
-  const NEW_TAB_HTML = `
-  <html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Earth</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Noto+Sans+JP:wght@400&display=swap" rel="stylesheet">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { height: 100vh; background: #000; display: flex; justify-content: center; align-items: center; overflow: hidden; font-family: 'Noto Sans JP', sans-serif; color: white; }
-.stars { position: absolute; width: 200%; height: 200%; background: transparent url('https://www.transparenttextures.com/patterns/stardust.png'); animation: moveStars 60s linear infinite; opacity: 0.4; }
-@keyframes moveStars { from { transform: translate(0, 0); } to { transform: translate(-500px, -500px); } }
-.container { text-align: center; z-index: 2; }
-.logo { font-family: 'Orbitron', sans-serif; font-size: 100px; letter-spacing: 12px; background: linear-gradient(90deg, #00d4ff, #00ff9f, #00d4ff); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 6s linear infinite, float 6s ease-in-out infinite; text-shadow: 0 0 40px rgba(0,255,255,0.6); }
-@keyframes shine { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
-@keyframes float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
-.message { margin-top: 40px; font-size: 22px; letter-spacing: 3px; opacity: 0; animation: fadeIn 3s ease forwards; animation-delay: 1s; }
-@keyframes fadeIn { to { opacity: 0.8; } }
-.glow { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(0,150,255,0.25), transparent 70%); animation: pulse 5s ease-in-out infinite alternate; }
-@keyframes pulse { from { transform: scale(0.9); opacity: 0.3; } to { transform: scale(1.1); opacity: 0.6; } }
-</style>
-</head>
-<body>
-<div class="stars"></div>
-<div class="glow"></div>
-<div class="container">
-    <div class="logo">EARTH</div>
-    <div class="message">アドレスバーにURL・検索語を入れて開始</div>
-</div>
-</body>
-</html>
-  `;  // ← ここにあなたが提供したNEW_TAB_HTMLの全文を貼り付けてください（省略してますが、元の長いHTMLをそのまま入れて）
-
-  const NEW_TAB_DATAURL = 'data:text/html;charset=utf-8,' + encodeURIComponent(NEW_TAB_HTML);
-
-  // UV config取得（uv.config.jsがself.__uv$configを設定）
-  const uv = self.__uv || {};
-  const uvConfig = uv.config || {
-    prefix: '/service/',
-    encodeUrl: uv.codec?.xor?.encode || (str => btoa(str)),  // フォールバック
-    decodeUrl: uv.codec?.xor?.decode || (str => atob(str)),
-    handler: '/uv/uv.handler.js',
-    bundle: '/uv/uv.bundle.js',
-    config: '/uv/uv.config.js',
-    sw: '/uv/uv.sw.js'
-  };
-
-  // 状態
-  let tabs = [];
-  let currentId = null;
-  const tabbar = document.getElementById('tabbar');
-  const webview = document.getElementById('webview');
-  const urlInput = document.getElementById('urlInput');
-  const urlForm = document.getElementById('urlForm');
-
-  // ドラッグ用
-  let dragSrcId = null;
-
-  // ユーティリティ
-  const uid = () => 't' + Math.random().toString(36).slice(2,9);
-
-  function normalizeInput(input) {
-    input = input.trim();
-    if (!input) return NEW_TAB_DATAURL;
-    if (/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(input)) return input;
-    if (/\s/.test(input)) return 'https://www.google.com/search?q=' + encodeURIComponent(input);
-    if (/\./.test(input)) return (input.startsWith('http') ? input : 'https://' + input);
-    return 'https://www.google.com/search?q=' + encodeURIComponent(input);
-  }
-
-  function domainOf(url) {
-    try { return new URL(url).origin; } catch { return url; }
-  }
-
-  function faviconFor(url) {
-    if (url === NEW_TAB_DATAURL) return '';
-    try {
-      const origin = new URL(url).origin;
-      return 'https://www.google.com/s2/favicons?sz=16&domain_url=' + encodeURIComponent(origin);
-    } catch { return ''; }
-  }
-
-  function getDisplayTitle(url, customTitle = '') {
-    if (url === NEW_TAB_DATAURL) return '新しいタブ';
-    if (customTitle) return customTitle;
-    try {
-      const u = new URL(url);
-      return u.hostname.replace(/^www\./, '');
-    } catch { return url; }
-  }
-
-  function createTab(initialUrl = null) {
-    const id = uid();
-    const startUrl = initialUrl || NEW_TAB_DATAURL;
-    const tab = {
-      id,
-      title: getDisplayTitle(startUrl),
-      url: startUrl,
-      favicon: faviconFor(startUrl),
-      history: [startUrl],
-      historyIndex: 0
-    };
-    tabs.push(tab);
-    renderTabs();
-    selectTab(id);
-    return tab;
-  }
-
-  function closeTab(id) {
-    const idx = tabs.findIndex(t => t.id === id);
-    if (idx === -1) return;
-    tabs.splice(idx, 1);
-    if (tabs.length === 0) {
-      createTab();
-      return;
-    }
-    if (currentId === id) {
-      const pick = tabs[Math.max(0, idx - 1)];
-      selectTab(pick.id);
-    } else {
-      renderTabs();
-    }
-  }
-
-  function selectTab(id) {
-    const tab = tabs.find(t => t.id === id);
-    if (!tab) return;
-    currentId = id;
-    const rawUrl = tab.history[tab.historyIndex] || tab.url;
-    loadProxiedUrl(rawUrl);
-    urlInput.value = (rawUrl === NEW_TAB_DATAURL) ? '' : rawUrl;
-    renderTabs();
-    updateNavButtons();
-  }
-
-  function loadProxiedUrl(rawUrl) {
-    if (rawUrl === NEW_TAB_DATAURL || rawUrl === 'about:blank') {
-      webview.src = rawUrl;
-      return;
-    }
-    try {
-      const encoded = uvConfig.encodeUrl(rawUrl);
-      const proxied = uvConfig.prefix + encoded;
-      webview.src = proxied;
-    } catch (err) {
-      console.error('UV encode failed', err);
-      webview.src = rawUrl;  // フォールバック
-    }
-  }
-
-  function renderTabs() {
-    // 既存タブ削除（アクション部分は残す）
-    Array.from(tabbar.children).forEach(child => {
-      if (child.classList.contains('tab-actions') || child.style.flex === '1') return;
-      child.remove();
-    });
-
-    tabs.forEach(t => {
-      const el = document.createElement('div');
-      el.className = 'tab' + (t.id === currentId ? ' active' : '');
-      el.dataset.id = t.id;
-      el.draggable = true;
-
-      // favicon
-      if (t.favicon) {
-        const img = document.createElement('img');
-        img.src = t.favicon;
-        img.width = 16; img.height = 16;
-        img.style.borderRadius = '2px';
-        img.style.marginRight = '6px';
-        el.appendChild(img);
-      }
-
-      // title
-      const span = document.createElement('span');
-      span.textContent = t.title;
-      span.style.overflow = 'hidden';
-      span.style.textOverflow = 'ellipsis';
-      span.style.whiteSpace = 'nowrap';
-      el.appendChild(span);
-
-      // close
-      const close = document.createElement('div');
-      close.className = 'close';
-      close.innerHTML = '✕';
-      close.onclick = e => { e.stopPropagation(); closeTab(t.id); };
-      el.appendChild(close);
-
-      el.onclick = () => selectTab(t.id);
-
-      // ドラッグイベント（省略せず元のまま）
-      el.addEventListener('dragstart', e => {
-        dragSrcId = t.id;
-        e.dataTransfer.setData('text/plain', t.id);
+    <script>
+      const optionsBtn = document.getElementById("options-btn");
+      const overlay = document.getElementById("menu-overlay");
+      optionsBtn.addEventListener("click", () => {
+        overlay.classList.toggle("active");
       });
-      el.addEventListener('dragover', e => {
-        e.preventDefault();
-        el.classList.add('drag-over');
-      });
-      el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-      el.addEventListener('drop', e => {
-        e.preventDefault();
-        el.classList.remove('drag-over');
-        const srcId = e.dataTransfer.getData('text/plain');
-        if (!srcId || srcId === t.id) return;
-        const srcIdx = tabs.findIndex(x => x.id === srcId);
-        const tgtIdx = tabs.findIndex(x => x.id === t.id);
-        if (srcIdx === -1 || tgtIdx === -1) return;
-        const [moved] = tabs.splice(srcIdx, 1);
-        tabs.splice(tgtIdx, 0, moved);
-        renderTabs();
-      });
-
-      tabbar.insertBefore(el, tabbar.querySelector('.tab-actions'));
-    });
-
-    updateTabDisplay();
-  }
-
-  function updateNavButtons() {
-    const tab = tabs.find(t => t.id === currentId);
-    document.getElementById('btnBack').disabled = !(tab && tab.historyIndex > 0);
-    document.getElementById('btnForward').disabled = !(tab && tab.historyIndex < tab.history.length - 1);
-  }
-
-  function navigateTo(input) {
-    const target = normalizeInput(input);
-    const tab = tabs.find(t => t.id === currentId);
-    if (!tab) return;
-
-    if (target === NEW_TAB_DATAURL) {
-      tab.history = [target];
-      tab.historyIndex = 0;
-      tab.url = target;
-      tab.title = '新しいタブ';
-      tab.favicon = '';
-      loadProxiedUrl(target);
-    } else {
-      // 履歴を切り詰め
-      tab.history = tab.history.slice(0, tab.historyIndex + 1);
-      tab.history.push(target);
-      tab.historyIndex = tab.history.length - 1;
-      tab.url = target;
-      tab.title = getDisplayTitle(target);
-      tab.favicon = faviconFor(target);
-      loadProxiedUrl(target);
-    }
-
-    urlInput.value = (target === NEW_TAB_DATAURL) ? '' : target;
-    renderTabs();
-    updateNavButtons();
-    updateTabDisplay();
-  }
-
-  function goBack() {
-    const tab = tabs.find(t => t.id === currentId);
-    if (!tab || tab.historyIndex <= 0) return;
-    tab.historyIndex--;
-    const url = tab.history[tab.historyIndex];
-    tab.url = url;
-    tab.title = getDisplayTitle(url);
-    tab.favicon = faviconFor(url);
-    loadProxiedUrl(url);
-    urlInput.value = (url === NEW_TAB_DATAURL) ? '' : url;
-    renderTabs();
-    updateNavButtons();
-    updateTabDisplay();
-  }
-
-  function goForward() {
-    const tab = tabs.find(t => t.id === currentId);
-    if (!tab || tab.historyIndex >= tab.history.length - 1) return;
-    tab.historyIndex++;
-    const url = tab.history[tab.historyIndex];
-    tab.url = url;
-    tab.title = getDisplayTitle(url);
-    tab.favicon = faviconFor(url);
-    loadProxiedUrl(url);
-    urlInput.value = (url === NEW_TAB_DATAURL) ? '' : url;
-    renderTabs();
-    updateNavButtons();
-    updateTabDisplay();
-  }
-
-  function reload() {
-    const tab = tabs.find(t => t.id === currentId);
-    if (!tab) return;
-    loadProxiedUrl(tab.history[tab.historyIndex]);
-  }
-
-  // 極小タブ時のアイコン調整
-  function updateTabDisplay() {
-    tabs.forEach(t => {
-      const el = tabbar.querySelector(`.tab[data-id="${t.id}"]`);
-      if (!el) return;
-      const width = el.offsetWidth;
-      const img = el.querySelector('img');
-      const span = el.querySelector('span');
-      const close = el.querySelector('.close');
-      if (width < 70) {
-        if (img) img.style.display = 'none';
-        if (span) span.style.display = 'none';
-        if (close) close.style.opacity = '1';
-      } else {
-        if (img) img.style.display = '';
-        if (span) span.style.display = '';
-        if (close) close.style.opacity = '0.7';
-      }
-    });
-  }
-
-  // イベント
-  document.getElementById('btnNewTab').addEventListener('click', () => createTab());
-  document.getElementById('btnBack').addEventListener('click', goBack);
-  document.getElementById('btnForward').addEventListener('click', goForward);
-  document.getElementById('btnReload').addEventListener('click', reload);
-
-  urlForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const v = urlInput.value.trim();
-    navigateTo(v);
-  });
-
-  // iframeロード時（タイトル取得は同一オリジン限定）
-  webview.addEventListener('load', () => {
-    const tab = tabs.find(t => t.id === currentId);
-    if (!tab) return;
-    try {
-      const cw = webview.contentWindow;
-      const loc = cw?.location?.href || webview.src;
-      if (loc && loc !== tab.history[tab.historyIndex]) {
-        tab.history = tab.history.slice(0, tab.historyIndex + 1);
-        tab.history.push(loc);
-        tab.historyIndex = tab.history.length - 1;
-        tab.url = loc;
-      }
-      // タイトル試行
-      let title = cw?.document?.title;
-      if (title && title.trim()) {
-        tab.title = title.trim();
-      } else {
-        tab.title = getDisplayTitle(loc);
-      }
-      tab.favicon = faviconFor(loc);
-      urlInput.value = (loc === NEW_TAB_DATAURL) ? '' : loc;
-    } catch (e) {
-      // クロスオリジン時はホスト名でフォールバック
-      tab.title = getDisplayTitle(tab.url);
-    }
-    renderTabs();
-    updateNavButtons();
-    updateTabDisplay();
-  });
-
-  // キーボードショートカット
-  window.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.key.toLowerCase() === 't') { e.preventDefault(); createTab(); }
-    if (e.ctrlKey && e.key.toLowerCase() === 'w') { e.preventDefault(); if (currentId) closeTab(currentId); }
-    if (e.ctrlKey && e.key.toLowerCase() === 'r' || e.key === 'F5') { e.preventDefault(); reload(); }
-  });
-
-  window.addEventListener('resize', updateTabDisplay);
-
-  // 初期化
-  createTab();
-})();
-</script>
-</body>
+    </script>
+  </body>
 </html>
