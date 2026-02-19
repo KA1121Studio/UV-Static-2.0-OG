@@ -75,7 +75,7 @@ abcOption.onclick = () => {
 };
 
 gitOption.onclick = () => {
-  window.open("https://github.com/rhenryw/UV-Static-2.0", "_blank");
+  window.open("https://github.com/KA1121Studio/UV-Static-2.0", "_blank");
 };
 
 urlForm.onsubmit = async (e) => {
