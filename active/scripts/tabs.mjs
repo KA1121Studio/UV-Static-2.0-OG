@@ -51,7 +51,7 @@ pageRefresh.onclick = () => {
 };
 
 newTabButton.onclick = () => {
-  addTab("https://harmonious-cendol-bf4e99.netlify.app");
+  addTab("https://stirring-horse-7f69ef.netlify.app");
 };
 
 // Options (opt menu)
@@ -133,7 +133,7 @@ const tabItem = (tab) => {
             if (tabs.length) focusTab(tabs[tabs.length - 1]);
             else
               setTimeout(() => {
-                addTab("https://harmonious-cendol-bf4e99.netlify.app");
+                addTab("https://stirring-horse-7f69ef.netlify.app");
               }, 100);
           }
 
@@ -248,7 +248,7 @@ async function addTab(link) {
   focusTab(tab);
 }
 
-addTab("https://harmonious-cendol-bf4e99.netlify.app");
+addTab("https://stirring-horse-7f69ef.netlify.app");
 
 const urlParams = new URLSearchParams(window.location.search);
 
