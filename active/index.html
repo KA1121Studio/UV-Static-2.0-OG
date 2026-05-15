@@ -1,24 +1,5 @@
 <!DOCTYPE html>
-<!--
-  
 
-██╗    ██╗   ██╗
-██║    ██║   ██║
-██║    ██║   ██║
-██║    ╚██╗ ██╔╝
-███████╗╚████╔╝ 
-╚══════╝ ╚═══╝  
-                
-                        
-
-By LupineVault.com
-All images and code are owned by LupineVault (lupinevault.com) and associated developers.
-© 2025 LupineVault and all associated developers.
-
-UV Static 2.0
--
-Developed by technonyte0
--->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -75,6 +56,29 @@ Developed by technonyte0
     cursor: pointer;
     border-radius: 6px;
   }
+    .sidebar-container {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 260px;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+
+  .sidebar-hidden {
+    transform: translateX(-100%);
+  }
+
+  #tab-view {
+    margin-left: 260px;
+    transition: margin-left 0.3s ease;
+  }
+
+  .expand-content {
+    margin-left: 0 !important;
+  }
+  
 </style>
     <script>
       window.onload = function () {
@@ -87,7 +91,7 @@ Developed by technonyte0
   </head>
 
   <body>
-    <button id="sidebar-toggle-btn">☰</button>
+    <button id="sidebar-toggle-btn">☰閉じる</button>
     
     <div id="small-screen-overlay">
      
@@ -200,11 +204,13 @@ Developed by technonyte0
       optionsBtn.addEventListener("click", () => {
         overlay.classList.toggle("active");
       });
-        const sidebar = document.querySelector(".sidebar-container");
+  const sidebar = document.querySelector(".sidebar-container");
   const toggleBtn = document.getElementById("sidebar-toggle-btn");
+  const tabView = document.getElementById("tab-view");
 
   toggleBtn.addEventListener("click", () => {
     sidebar.classList.toggle("sidebar-hidden");
+    tabView.classList.toggle("expand-content");
   });
     </script>
   </body>
