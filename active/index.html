@@ -35,13 +35,30 @@
 <style>
   body {padding: 0;margin: 0;}
 
-  .sidebar-hidden {
-    transform: translateX(-100%);
+  .sidebar-container {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 260px;
+    z-index: 1000;
     transition: transform 0.3s ease;
   }
 
-  .sidebar-container {
-    transition: transform 0.3s ease;
+  .sidebar-hidden {
+    transform: translateX(-100%);
+  }
+
+  #main-content,
+  #tab-view {
+    margin-left: 260px;
+    width: calc(100% - 260px);
+    transition: margin-left 0.3s ease, width 0.3s ease;
+  }
+
+  .expand-content {
+    margin-left: 0 !important;
+    width: 100% !important;
   }
 
   #sidebar-toggle-btn {
@@ -56,29 +73,6 @@
     cursor: pointer;
     border-radius: 6px;
   }
-    .sidebar-container {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100vh;
-    width: 260px;
-    transition: transform 0.3s ease;
-    z-index: 1000;
-  }
-
-  .sidebar-hidden {
-    transform: translateX(-100%);
-  }
-
-  #tab-view {
-    margin-left: 260px;
-    transition: margin-left 0.3s ease;
-  }
-
-  .expand-content {
-    margin-left: 0 !important;
-  }
-  
 </style>
     <script>
       window.onload = function () {
@@ -204,12 +198,14 @@
       optionsBtn.addEventListener("click", () => {
         overlay.classList.toggle("active");
       });
-  const sidebar = document.querySelector(".sidebar-container");
+ const sidebar = document.querySelector(".sidebar-container");
   const toggleBtn = document.getElementById("sidebar-toggle-btn");
+  const mainContent = document.getElementById("main-content");
   const tabView = document.getElementById("tab-view");
 
   toggleBtn.addEventListener("click", () => {
     sidebar.classList.toggle("sidebar-hidden");
+    mainContent.classList.toggle("expand-content");
     tabView.classList.toggle("expand-content");
   });
     </script>
