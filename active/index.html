@@ -51,9 +51,31 @@ Developed by technonyte0
     <script src="scripts/tabs.mjs" type="module" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/gh/tf7software/Font-Awesome-pro-cdn@main/js/all.js"></script>
-    <style>
-      body {padding: 0;margin: 0;}
-    </style>
+<style>
+  body {padding: 0;margin: 0;}
+
+  .sidebar-hidden {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-container {
+    transition: transform 0.3s ease;
+  }
+
+  #sidebar-toggle-btn {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 9999;
+    background: #5a32e3;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+</style>
     <script>
       window.onload = function () {
         if (!localStorage.getItem("discordAlertShown")) {
@@ -65,6 +87,8 @@ Developed by technonyte0
   </head>
 
   <body>
+    <button id="sidebar-toggle-btn">☰</button>
+    
     <div id="small-screen-overlay">
      
     </div>
@@ -176,6 +200,12 @@ Developed by technonyte0
       optionsBtn.addEventListener("click", () => {
         overlay.classList.toggle("active");
       });
+        const sidebar = document.querySelector(".sidebar-container");
+  const toggleBtn = document.getElementById("sidebar-toggle-btn");
+
+  toggleBtn.addEventListener("click", () => {
+    sidebar.classList.toggle("sidebar-hidden");
+  });
     </script>
   </body>
 </html>
